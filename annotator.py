@@ -11,6 +11,7 @@ Author: Jannis Uhlendorf
 import sys
 import libsbml
 import pandas
+import optparse
 
 
 sbml_elements = [ 'Species', 'Reactions', 'Parameters', 'FunctionDefinitions', 'Compartments', 'Events' ]
