@@ -47,8 +47,11 @@ biological_qualifier_2_sbml = {sbml_2_biological_qualifier[key]: key for key in 
 def get_element_annotations( sbml_element ):
     """ get annotations for a single sbml element """
     annos = []
-    if sbml_element.getNumCVTerms()>0:
-        for cv in sbml_element.getCVTerms():
+    #if sbml_element.getNumCVTerms()>0:
+    #    print sbml_element.getCVTerms()
+    #    print sbml_element.getCVTerm(0)
+    #    for cv in sbml_element.getCVTerms():
+    for cv in [sbml_element.getCVTerm(i) for i in range(sbml_element.getNumCVTerms())]:
             for r in range(cv.getNumResources()):
                 if cv.getQualifierType()==libsbml.MODEL_QUALIFIER:
                     qualifier = sbml_2_model_qualifier[cv.getModelQualifierType()]
@@ -75,40 +78,20 @@ def get_annotations_from_sbml( sbml_model ):
     df.index = range(len(df))
     return df
 
-def get_sbml_element_by_id( sbml_model, id ):
-    """ get a single SBML element, speciefied by its ID """
-    for le in sbml_elements:
-        for elem in getattr(sbml_model, 'getListOf'+le)():
-            if elem.getId()==id:
-                return elem
-
 def write_annotations_to_sbml( sbml_model, annotation_df ):
     for le in sbml_elements:
         for elem in getattr(sbml_model, 'getListOf'+le)():
             elem_annos = annotation_df[annotation_df['ID']==elem.getId()]
-            # add model qualifiers
-            cv = None
-            for index,anno in elem_annos[elem_annos['qualifier_type']=='MODEL_QUALIFIER'].iterrows():
-                #print anno
-                if cv==None:
+            for qtype in ['Biological', 'Model']:
+                libsbml_qtype = qtype.upper() + '_QUALIFIER'
+                for quali in elem_annos[elem_annos['qualifier_type']==libsbml_qtype]['qualifier'].unique():
                     cv = libsbml.CVTerm()
-                    cv.setQualifierType( qualifier_type_2_sbml[ 'MODEL_QUALIFIER' ] )
-                cv.setModelQualifierType( model_qualifier_2_sbml[anno['qualifier']] )
-            if cv!=None:
-                print cv
-                elem.addCVTerm(cv)
-                cv = None
-            # add biological qualifiers
-            for index,anno in elem_annos[elem_annos['qualifier_type']=='BIOLOGICAL_QUALIFIER'].iterrows():
-                #print anno
-                if cv==None:
-                    cv = libsbml.CVTerm()
-                    cv.setQualifierType( qualifier_type_2_sbml[ 'BIOLOGICAL_QUALIFIER' ] )
-                cv.setModelQualifierType( biological_qualifier_2_sbml[anno['qualifier']] )
-            if cv!=None:
-                print cv.toSBML()
-                elem.addCVTerm(cv)
-    print sbml_model.toSBML()
+                    cv.setQualifierType( qualifier_type_2_sbml[ libsbml_qtype ] )
+                    libsbml_qualifier_code = globals()[ qtype.lower()+'_qualifier_2_sbml' ][ quali ]
+                    getattr( cv, 'set%sQualifierType' %qtype )( libsbml_qualifier_code )
+                    for index,anno in elem_annos[ (elem_annos['qualifier_type']==libsbml_qtype) & (elem_annos['qualifier']==quali)].iterrows():
+                        cv.addResource( anno['URI'] )
+                    elem.addCVTerm(cv)
     return sbml_model
 
 def remove_all_annotations( sbml_model ):
