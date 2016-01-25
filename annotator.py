@@ -81,10 +81,14 @@ def get_annotations_from_sbml( sbml_model ):
 def write_annotations_to_sbml( sbml_model, annotation_df ):
     for le in sbml_elements:
         for elem in getattr(sbml_model, 'getListOf'+le)():
-            elem_annos = annotation_df[annotation_df['ID']==elem.getId()]
+            if not elem.isSetMetaId():
+                # libsbml does not set annotation if no meta-id is set
+                elem.setMetaId(elem.getId())
+            elem_annos = annotation_df[annotation_df['ID']==elem.getId()]            
             for qtype in ['Biological', 'Model']:
                 libsbml_qtype = qtype.upper() + '_QUALIFIER'
                 for quali in elem_annos[elem_annos['qualifier_type']==libsbml_qtype]['qualifier'].unique():
+
                     cv = libsbml.CVTerm()
                     cv.setQualifierType( qualifier_type_2_sbml[ libsbml_qtype ] )
                     libsbml_qualifier_code = globals()[ qtype.lower()+'_qualifier_2_sbml' ][ quali ]
